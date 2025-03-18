@@ -12,6 +12,15 @@ Currently implemented:
 - Basic player movement using WASD controls
 - Object-oriented structure for future expansion
 - Simple game loop with collision boundary enforcement
++ Enemies added
++ Multiple enemy support added (uncommitted)
++ Aiming and bullets added for both player and enemies
++ Start and end menu added
++ Enemy movement logic added (basic/buggy)
+
+To-do:
+- Remove variable redundancies (range & reticle range should do the same thing for enemies)
+- Add/fix multi-enemy movement
 
 ### Planned Features
 
