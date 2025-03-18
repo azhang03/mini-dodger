@@ -6,7 +6,7 @@ from collections import deque
 
 
 class Bullet:
-    def __init__(self, x, y, direction, speed, size, color):
+    def __init__(self, x, y, direction, speed, size, color, max_distance):
         """
         Initialize a bullet.
 
@@ -17,14 +17,19 @@ class Bullet:
             speed (int): Bullet speed in pixels per frame
             size (tuple): Width and height of the bullet
             color (tuple): RGB color value as (R, G, B)
+            max_distance (float): Maximum travel distance for the bullet
         """
         self.x = x
         self.y = y
+        self.start_x = x
+        self.start_y = y
         self.direction = direction
         self.speed = speed
         self.width, self.height = size
         self.color = color
         self.active = True
+        self.max_distance = max_distance
+        self.distance_traveled = 0
 
     def update(self, screen_width, screen_height):
         """
@@ -37,6 +42,16 @@ class Bullet:
         # Move the bullet
         self.x += self.direction[0] * self.speed
         self.y += self.direction[1] * self.speed
+
+        # Calculate distance traveled
+        dx = self.x - self.start_x
+        dy = self.y - self.start_y
+        self.distance_traveled = math.sqrt(dx * dx + dy * dy)
+
+        # Check if bullet has traveled its maximum distance
+        if self.distance_traveled >= self.max_distance:
+            self.active = False
+            return
 
         # Check if bullet is off-screen
         if (self.x < -self.width or self.x > screen_width + self.width or
@@ -100,12 +115,13 @@ class Player:
 
         # ----- BULLET CONFIGURATION -----
         # You can edit these values to change bullet behavior
-        self.bullet_count = 12  # Number of bullets in a burst
-        self.bullet_delay = 5  # Frames between each bullet (smaller = faster firing)
+        self.bullet_count = 12  # Number of bullets in a burst (total bullets across both columns)
+        self.bullet_delay = 10  # Frames between each bullet in the same column
         self.bullet_speed = 10  # Speed of bullets
         self.bullet_size = (20, 8)  # Size of bullets (width, height)
         self.bullet_color = (0, 0, 255)  # Bullet color (blue)
-        self.bullet_spread = 0.0  # Random spread factor (0 = no spread, higher = more spread)
+        self.bullet_spread = 0  # Random spread factor (0 = no spread, higher = more spread)
+        self.column_offset = 15  # Distance between left and right columns
         # ------------------------------
 
     def move(self, dx, dy, screen_width, screen_height):
@@ -149,7 +165,12 @@ class Player:
         self.shooting = True
         self.bullets_to_fire = self.bullet_count
 
+        # Calculate perpendicular vector for column positioning
+        perp_x = -self.aim_direction[1]
+        perp_y = self.aim_direction[0]
+
         # Pre-calculate all bullet directions for consistent trajectory
+        # Creating a staggered pattern in two columns like Colt in Brawlstars
         for i in range(self.bullet_count):
             # Apply random spread to direction
             # ----- BULLET SPREAD CONFIGURATION -----
@@ -163,8 +184,23 @@ class Player:
             length = math.sqrt(dir_x ** 2 + dir_y ** 2)
             bullet_dir = (dir_x / length, dir_y / length)
 
-            # Add to queue with delay counter
-            self.bullet_queue.append((bullet_dir, self.bullet_delay * i))
+            # Determine if this bullet is in the left or right column (alternating)
+            # Even indices go to left column, odd to right column
+            is_left_column = (i % 2 == 0)
+
+            # Calculate offset based on column
+            offset_factor = -0.5 if is_left_column else 0.5
+            offset_x = perp_x * self.column_offset * offset_factor
+            offset_y = perp_y * self.column_offset * offset_factor
+
+            # Calculate delay: stagger left and right columns
+            # Each column fires at twice the delay rate, with the right column delayed by half the interval
+            column_delay = self.bullet_delay * (i // 2)  # Integer division to group by pairs
+            if not is_left_column:
+                column_delay += self.bullet_delay // 2  # Half delay offset for right column
+
+            # Add to queue with position offset and delay counter
+            self.bullet_queue.append((bullet_dir, column_delay, offset_x, offset_y))
 
     def update_shooting(self, bullets, screen_width, screen_height):
         """
@@ -177,25 +213,29 @@ class Player:
         """
         # Process bullet queue
         to_remove = []
-        for i, (bullet_dir, delay) in enumerate(self.bullet_queue):
+        for i, (bullet_dir, delay, offset_x, offset_y) in enumerate(self.bullet_queue):
             if delay <= 0:
-                # Create the bullet
+                # Create the bullet with column offset
                 # ----- BULLET CREATION CONFIGURATION -----
                 # Modify bullet_size, bullet_speed, and bullet_color above
                 # to change the appearance and behavior of bullets
+                start_x = self.x + offset_x
+                start_y = self.y + offset_y
+
                 new_bullet = Bullet(
-                    self.x,
-                    self.y,
+                    start_x,
+                    start_y,
                     bullet_dir,
                     self.bullet_speed,
                     self.bullet_size,
-                    self.bullet_color
+                    self.bullet_color,
+                    self.indicator_length  # Pass the max distance to match indicator length
                 )
                 bullets.append(new_bullet)
                 to_remove.append(i)
             else:
                 # Decrease delay counter
-                self.bullet_queue[i] = (bullet_dir, delay - 1)
+                self.bullet_queue[i] = (bullet_dir, delay - 1, offset_x, offset_y)
 
         # Remove processed bullets from queue
         # Convert to list, modify, then convert back to deque (since deque doesn't support pop with index)
@@ -232,6 +272,9 @@ class Player:
         indicator_length = 300
         indicator_width = 30
         indicator_color = (255, 255, 0)  # Yellow
+
+        # Store the indicator length for bullet max distance
+        self.indicator_length = indicator_length
 
         # Calculate the endpoint of the indicator
         end_x = self.x + self.aim_direction[0] * indicator_length
