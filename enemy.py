@@ -32,7 +32,7 @@ class Enemy:
         # Ammo System
         self.max_ammo = 3
         self.ammo = [1.0, 1.0, 1.0]  # Start with full ammo
-        self.ammo_recharge_rate = 0.005  # Amount recharged per frame
+        self.ammo_recharge_rate = 0.01  # Amount recharged per frame
         self.is_recharging = True
 
         # Health System
@@ -41,18 +41,19 @@ class Enemy:
 
         # AI properties
         self.target = None
-        self.attack_range = 500  # Same as bullet indicator length
+        self.attack_range = 500  # Range at which the enemy will shoot
+        self.indicator_length = 500  # Keep this the same as attack_range
         self.attack_cooldown = 0
         self.min_attack_cooldown = 60  # Frames between attack attempts
 
         # ----- BULLET CONFIGURATION -----
         # You can edit these values to change bullet behavior
         self.bullet_count = 12  # Number of bullets in a burst (total bullets across both columns)
-        self.bullet_delay = 10  # Frames between each bullet in the same column
+        self.bullet_delay = 5  # Frames between each bullet in the same column
         self.bullet_speed = 10  # Speed of bullets
         self.bullet_size = (20, 8)  # Size of bullets (width, height)
         self.bullet_color = (0, 255, 0)  # Bullet color (green)
-        self.bullet_spread = 0.05  # Random spread factor (0 = no spread, higher = more spread)
+        self.bullet_spread = 0  # Random spread factor (0 = no spread, higher = more spread)
         self.column_offset = 15  # Distance between left and right columns
 
         # Store the indicator length for bullet max distance

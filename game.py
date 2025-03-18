@@ -24,14 +24,26 @@ class Game:
         self.screen = pygame.display.set_mode((width, height))
         pygame.display.set_caption(title)
 
+        # Set up fonts
+        self.font = pygame.font.SysFont('Arial', 24)
+        self.big_font = pygame.font.SysFont('Arial', 72)
+
         # Set up clock for controlling frame rate
         self.clock = pygame.time.Clock()
         self.fps = 60
 
+        # Initialize game
+        self.init_game()
+
+        # Background color (light beige)
+        self.bg_color = (245, 245, 220)
+
+    def init_game(self):
+        """Initialize or reset the game state."""
         # Create player
         self.player = Player(
-            x=width // 4,
-            y=height // 2,
+            x=self.width // 4,
+            y=self.height // 2,
             radius=30,
             color=(255, 0, 0),  # Red
             speed=5
@@ -39,8 +51,8 @@ class Game:
 
         # Create enemy
         self.enemy = Enemy(
-            x=width * 3 // 4,
-            y=height // 2,
+            x=self.width * 3 // 4,
+            y=self.height // 2,
             radius=30,
             color=(0, 0, 255),  # Blue
             speed=3
@@ -55,12 +67,16 @@ class Game:
 
         # Game state
         self.running = True
-
-        # Background color (light beige)
-        self.bg_color = (245, 245, 220)
+        self.game_over = False
 
         # Damage values
-        self.bullet_damage = 10
+        self.player_bullet_damage = 10
+        self.enemy_bullet_damage = 1
+
+        # Hit notification
+        self.show_hit_notification = False
+        self.hit_notification_timer = 0
+        self.hit_notification_duration = 30  # frames (half second at 60fps)
 
     def handle_events(self):
         """Handle pygame events like quit and keypresses."""
@@ -68,19 +84,36 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 3:  # Right mouse button
+                if self.game_over:
+                    # Check for Try Again button click
+                    mouse_pos = pygame.mouse.get_pos()
+                    if self.try_again_rect.collidepoint(mouse_pos):
+                        self.init_game()  # Reset the game
+                    elif self.quit_rect.collidepoint(mouse_pos):
+                        self.running = False
+                elif event.button == 3:  # Right mouse button (when game is active)
                     self.player.aiming = True
             elif event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 3 and self.player.aiming:  # Right mouse button release
+                if not self.game_over and event.button == 3 and self.player.aiming:
                     self.player.aiming = False
                     self.player.start_shooting()
 
-        # Get mouse position for aiming
-        mouse_pos = pygame.mouse.get_pos()
-        self.player.update_aim(mouse_pos)
+        if not self.game_over:
+            # Get mouse position for aiming
+            mouse_pos = pygame.mouse.get_pos()
+            self.player.update_aim(mouse_pos)
 
     def update(self):
         """Update game state."""
+        if self.game_over:
+            return
+
+        # Update hit notification
+        if self.show_hit_notification:
+            self.hit_notification_timer -= 1
+            if self.hit_notification_timer <= 0:
+                self.show_hit_notification = False
+
         # Get player movement for this frame
         keys = pygame.key.get_pressed()
         player_dx, player_dy = 0, 0
@@ -95,12 +128,7 @@ class Game:
             player_dx += self.player.speed
 
         # Apply movement with screen bounds checking
-        old_x, old_y = self.player.x, self.player.y
         self.player.move(player_dx, player_dy, self.width, self.height)
-
-        # Calculate actual movement (in case of screen bounds)
-        actual_dx = self.player.x - old_x
-        actual_dy = self.player.y - old_y
 
         # Update player
         self.player.update_ammo()
@@ -123,7 +151,7 @@ class Game:
 
             if distance < self.enemy.radius:
                 # Hit enemy
-                is_dead = self.enemy.take_damage(self.bullet_damage)
+                is_dead = self.enemy.take_damage(self.player_bullet_damage)
                 bullet.active = False
                 self.player_bullets.remove(bullet)
 
@@ -132,15 +160,10 @@ class Game:
                     self.respawn_enemy()
 
         # Update enemy and its movement
-        old_enemy_x, old_enemy_y = self.enemy.x, self.enemy.y
-        enemy_dx, enemy_dy = self.enemy.move_towards_target(self.width, self.height)
+        self.enemy.move_towards_target(self.width, self.height)
 
         # Update enemy state
         self.enemy.update(self.enemy_bullets, self.width, self.height)
-
-        # Calculate actual enemy movement
-        actual_enemy_dx = self.enemy.x - old_enemy_x
-        actual_enemy_dy = self.enemy.y - old_enemy_y
 
         # Update enemy bullets
         for bullet in self.enemy_bullets[:]:
@@ -155,9 +178,18 @@ class Game:
             distance = (dx * dx + dy * dy) ** 0.5
 
             if distance < self.player.radius:
-                # Hit player (could implement player health in the future)
+                # Hit player
+                is_dead = self.player.take_damage(self.enemy_bullet_damage)
                 bullet.active = False
                 self.enemy_bullets.remove(bullet)
+
+                # Show hit notification
+                self.show_hit_notification = True
+                self.hit_notification_timer = self.hit_notification_duration
+
+                # Check if player is dead
+                if is_dead:
+                    self.game_over = True
 
     def respawn_enemy(self):
         """Respawn the enemy at a random position."""
@@ -185,6 +217,16 @@ class Game:
         # Clear the screen
         self.screen.fill(self.bg_color)
 
+        if self.game_over:
+            self.render_game_over()
+        else:
+            self.render_gameplay()
+
+        # Update the display
+        pygame.display.flip()
+
+    def render_gameplay(self):
+        """Render the main gameplay elements."""
         # Draw player bullets
         for bullet in self.player_bullets:
             bullet.draw(self.screen)
@@ -199,8 +241,51 @@ class Game:
         # Draw the player
         self.player.draw(self.screen)
 
-        # Update the display
-        pygame.display.flip()
+        # Draw hit notification if active
+        if self.show_hit_notification:
+            hit_text = self.font.render("Hit!", True, (255, 0, 0))
+            text_rect = hit_text.get_rect(center=(self.width // 2, self.height // 4))
+            self.screen.blit(hit_text, text_rect)
+
+    def render_game_over(self):
+        """Render the game over screen."""
+        # Game over text
+        game_over_text = self.big_font.render("GAME OVER", True, (255, 0, 0))
+        go_rect = game_over_text.get_rect(center=(self.width // 2, self.height // 3))
+        self.screen.blit(game_over_text, go_rect)
+
+        # Button dimensions
+        button_width = 200
+        button_height = 50
+        button_spacing = 20
+
+        # Try Again button
+        try_again_button = pygame.Rect(
+            self.width // 2 - button_width // 2,
+            self.height // 2,
+            button_width,
+            button_height
+        )
+        self.try_again_rect = try_again_button
+        pygame.draw.rect(self.screen, (0, 200, 0), try_again_button)
+        pygame.draw.rect(self.screen, (0, 100, 0), try_again_button, 3)
+        try_text = self.font.render("Try Again", True, (255, 255, 255))
+        try_text_rect = try_text.get_rect(center=try_again_button.center)
+        self.screen.blit(try_text, try_text_rect)
+
+        # Quit button
+        quit_button = pygame.Rect(
+            self.width // 2 - button_width // 2,
+            self.height // 2 + button_height + button_spacing,
+            button_width,
+            button_height
+        )
+        self.quit_rect = quit_button
+        pygame.draw.rect(self.screen, (200, 0, 0), quit_button)
+        pygame.draw.rect(self.screen, (100, 0, 0), quit_button, 3)
+        quit_text = self.font.render("Quit", True, (255, 255, 255))
+        quit_text_rect = quit_text.get_rect(center=quit_button.center)
+        self.screen.blit(quit_text, quit_text_rect)
 
     def run(self):
         """Main game loop."""

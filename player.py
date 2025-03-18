@@ -43,8 +43,12 @@ class Player:
         self.bullet_speed = 10  # Speed of bullets
         self.bullet_size = (20, 8)  # Size of bullets (width, height)
         self.bullet_color = (0, 0, 255)  # Bullet color (blue)
-        self.bullet_spread = 0  # Random spread factor (0 = no spread, higher = more spread)
+        self.bullet_spread = 0 # Random spread factor (0 = no spread, higher = more spread)
         self.column_offset = 15  # Distance between left and right columns
+
+        # Health System
+        self.max_health = 3
+        self.health = 3
 
         # Store the indicator length (will be set in draw_aim_indicator)
         self.indicator_length = 300
@@ -262,6 +266,43 @@ class Player:
 
         # Draw ammo bars
         self.draw_ammo_bars(screen)
+
+        # Draw health bar
+        self.draw_health_bar(screen)
+
+    def draw_health_bar(self, screen):
+        """
+        Draw health bar above the player.
+
+        Args:
+            screen: Pygame surface to draw on
+        """
+        # Health bar settings
+        bar_width = 60
+        bar_height = 8
+        bar_offset_y = 20  # Distance above player
+
+        # Colors
+        background_color = (64, 64, 64)  # Dark gray
+        health_color = (0, 255, 0)  # Green
+
+        # Position bar above the player
+        bar_x = self.x - bar_width / 2
+        bar_y = self.y - self.radius - bar_offset_y
+
+        # Draw background
+        pygame.draw.rect(screen, background_color, (bar_x, bar_y, bar_width, bar_height))
+
+        # Draw filled portion based on health percentage
+        health_width = int(bar_width * (self.health / self.max_health))
+        if health_width > 0:
+            pygame.draw.rect(screen, health_color, (bar_x, bar_y, health_width, bar_height))
+
+    def take_damage(self, damage):
+        """Apply damage to the player."""
+        self.health -= damage
+        self.health = max(0, self.health)  # Don't go below 0
+        return self.health <= 0  # Return True if dead
 
     def draw_aim_indicator(self, screen):
         """
