@@ -5,7 +5,7 @@ import math
 class Bullet:
     def __init__(self, x, y, direction, speed, size, color, max_distance):
         """
-        Initialize a bullet.
+        Create a bullet here
 
         Args:
             x (int): Starting x position
@@ -28,29 +28,15 @@ class Bullet:
         self.max_distance = max_distance
         self.distance_traveled = 0
 
-        # Track relative position to player
-        self.rel_x = 0
-        self.rel_y = 0
-
-    def update(self, screen_width, screen_height, player_dx=0, player_dy=0):
+    def update(self, screen_width, screen_height):
         """
         Update bullet position.
 
         Args:
             screen_width (int): Width of the game screen
             screen_height (int): Height of the game screen
-            player_dx (int): Player's x movement in this frame
-            player_dy (int): Player's y movement in this frame
         """
-        # Move the bullet with the player
-        self.x += player_dx
-        self.y += player_dy
-
-        # Also move the start position with the player to maintain correct distance calculation
-        self.start_x += player_dx
-        self.start_y += player_dy
-
-        # Move the bullet according to its direction and speed
+        # Move the bullet
         self.x += self.direction[0] * self.speed
         self.y += self.direction[1] * self.speed
 
@@ -84,7 +70,7 @@ class Bullet:
             self.height
         )
 
-        # Rotate the bullet to match its direction
+        # Rotate the bullet to match dir
         angle = math.degrees(math.atan2(-self.direction[1], self.direction[0]))
 
         # Create a surface for the rotated bullet

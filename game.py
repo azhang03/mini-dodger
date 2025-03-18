@@ -109,9 +109,9 @@ class Game:
         if self.player.shooting:
             self.player.update_shooting(self.player_bullets, self.width, self.height)
 
-        # Update player bullets - pass the player movement
+        # Update player bullets
         for bullet in self.player_bullets[:]:
-            bullet.update(self.width, self.height, actual_dx, actual_dy)
+            bullet.update(self.width, self.height)
             if not bullet.active:
                 self.player_bullets.remove(bullet)
                 continue
@@ -144,7 +144,7 @@ class Game:
 
         # Update enemy bullets
         for bullet in self.enemy_bullets[:]:
-            bullet.update(self.width, self.height, actual_enemy_dx, actual_enemy_dy)
+            bullet.update(self.width, self.height)
             if not bullet.active:
                 self.enemy_bullets.remove(bullet)
                 continue

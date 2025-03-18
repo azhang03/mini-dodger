@@ -41,7 +41,7 @@ class Enemy:
 
         # AI properties
         self.target = None
-        self.attack_range = 300  # Same as bullet indicator length
+        self.attack_range = 500  # Same as bullet indicator length
         self.attack_cooldown = 0
         self.min_attack_cooldown = 60  # Frames between attack attempts
 
@@ -56,7 +56,7 @@ class Enemy:
         self.column_offset = 15  # Distance between left and right columns
 
         # Store the indicator length for bullet max distance
-        self.indicator_length = 300
+        self.indicator_length = 500
 
     def move_towards_target(self, screen_width, screen_height):
         """Move towards the target if it exists and is out of range."""
