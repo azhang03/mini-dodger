@@ -1,6 +1,8 @@
 import pygame
 import sys
+import random
 from player import Player
+from enemy import Enemy
 
 
 class Game:
@@ -28,21 +30,37 @@ class Game:
 
         # Create player
         self.player = Player(
-            x=width // 2,
+            x=width // 4,
             y=height // 2,
             radius=30,
             color=(255, 0, 0),  # Red
             speed=5
         )
 
-        # Initialize bullets list
-        self.bullets = []
+        # Create enemy
+        self.enemy = Enemy(
+            x=width * 3 // 4,
+            y=height // 2,
+            radius=30,
+            color=(0, 0, 255),  # Blue
+            speed=3
+        )
+
+        # Set target for enemy to player
+        self.enemy.target = self.player
+
+        # Initialize bullets lists
+        self.player_bullets = []
+        self.enemy_bullets = []
 
         # Game state
         self.running = True
 
         # Background color (light beige)
         self.bg_color = (245, 245, 220)
+
+        # Damage values
+        self.bullet_damage = 10
 
     def handle_events(self):
         """Handle pygame events like quit and keypresses."""
@@ -89,22 +107,94 @@ class Game:
 
         # Update player shooting state
         if self.player.shooting:
-            self.player.update_shooting(self.bullets, self.width, self.height)
+            self.player.update_shooting(self.player_bullets, self.width, self.height)
 
-        # Update bullets - pass the player movement
-        for bullet in self.bullets[:]:
+        # Update player bullets - pass the player movement
+        for bullet in self.player_bullets[:]:
             bullet.update(self.width, self.height, actual_dx, actual_dy)
             if not bullet.active:
-                self.bullets.remove(bullet)
+                self.player_bullets.remove(bullet)
+                continue
+
+            # Check collision with enemy
+            dx = bullet.x - self.enemy.x
+            dy = bullet.y - self.enemy.y
+            distance = (dx * dx + dy * dy) ** 0.5
+
+            if distance < self.enemy.radius:
+                # Hit enemy
+                is_dead = self.enemy.take_damage(self.bullet_damage)
+                bullet.active = False
+                self.player_bullets.remove(bullet)
+
+                # Respawn enemy if dead
+                if is_dead:
+                    self.respawn_enemy()
+
+        # Update enemy and its movement
+        old_enemy_x, old_enemy_y = self.enemy.x, self.enemy.y
+        enemy_dx, enemy_dy = self.enemy.move_towards_target(self.width, self.height)
+
+        # Update enemy state
+        self.enemy.update(self.enemy_bullets, self.width, self.height)
+
+        # Calculate actual enemy movement
+        actual_enemy_dx = self.enemy.x - old_enemy_x
+        actual_enemy_dy = self.enemy.y - old_enemy_y
+
+        # Update enemy bullets
+        for bullet in self.enemy_bullets[:]:
+            bullet.update(self.width, self.height, actual_enemy_dx, actual_enemy_dy)
+            if not bullet.active:
+                self.enemy_bullets.remove(bullet)
+                continue
+
+            # Check collision with player
+            dx = bullet.x - self.player.x
+            dy = bullet.y - self.player.y
+            distance = (dx * dx + dy * dy) ** 0.5
+
+            if distance < self.player.radius:
+                # Hit player (could implement player health in the future)
+                bullet.active = False
+                self.enemy_bullets.remove(bullet)
+
+    def respawn_enemy(self):
+        """Respawn the enemy at a random position."""
+        # Respawn with full health
+        self.enemy.health = self.enemy.max_health
+
+        # Find a position away from the player
+        min_distance = 300  # Minimum distance from player
+
+        while True:
+            x = random.randint(self.enemy.radius, self.width - self.enemy.radius)
+            y = random.randint(self.enemy.radius, self.height - self.enemy.radius)
+
+            dx = x - self.player.x
+            dy = y - self.player.y
+            distance = (dx * dx + dy * dy) ** 0.5
+
+            if distance >= min_distance:
+                self.enemy.x = x
+                self.enemy.y = y
+                break
 
     def render(self):
         """Render the game screen."""
         # Clear the screen
         self.screen.fill(self.bg_color)
 
-        # Draw bullets
-        for bullet in self.bullets:
+        # Draw player bullets
+        for bullet in self.player_bullets:
             bullet.draw(self.screen)
+
+        # Draw enemy bullets
+        for bullet in self.enemy_bullets:
+            bullet.draw(self.screen)
+
+        # Draw the enemy
+        self.enemy.draw(self.screen)
 
         # Draw the player
         self.player.draw(self.screen)
