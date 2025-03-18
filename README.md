@@ -1,4 +1,4 @@
-# Brawlstars Dodge Trainer
+# mini-dodger
 
 A Python-based training application to help players improve their dodging and aiming skills (it's for Brawlstars but uhhh... let's avoid some copyright).
 
